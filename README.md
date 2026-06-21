@@ -40,11 +40,16 @@ work without trying to remember it.
 
 ## Install
 
+Not published to npm yet — install from source:
+
 ```bash
-npm install -g @printemps-tokyo/daylog
-# or run once:
-npx @printemps-tokyo/daylog
+git clone https://github.com/printemps-tokyo/daylog
+cd daylog
+npm install && npm run build
+npm link   # optional: puts the `daylog` command on your PATH
 ```
+
+Then run `daylog …` (after `npm link`), or `node dist/cli.js …` from the clone.
 
 ## Usage
 
