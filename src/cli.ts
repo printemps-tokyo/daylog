@@ -23,6 +23,7 @@ import {
   type DayReport,
   type Window,
 } from "./index.js";
+import { usageError } from "./usage.js";
 
 const ALL_SOURCES = ["git", "claude", "codex"] as const;
 type Source = (typeof ALL_SOURCES)[number];
@@ -175,7 +176,7 @@ async function main(): Promise<number> {
     values = parsed.values;
     positionals = parsed.positionals;
   } catch (err) {
-    process.stderr.write(`error: ${(err as Error).message}\n`);
+    process.stderr.write(usageError(err, "daylog"));
     return 1;
   }
 
