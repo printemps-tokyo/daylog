@@ -58,6 +58,7 @@ daylog                          # today, scanning the current directory for repo
 daylog 2026-06-19               # a specific day
 daylog --root ~/src --rollover 6   # scan ~/src; the day ends at 06:00 next morning
 daylog --source git,claude      # only some sources
+daylog --author me@example.com  # only your commits on shared repos (repeatable)
 daylog --format json -o day.json   # machine-readable output to a file
 ```
 
@@ -67,11 +68,20 @@ daylog --format json -o day.json   # machine-readable output to a file
 | `--root <dir>` | Directory to scan for git repos (repeatable) | current directory |
 | `--depth <n>` | Max scan depth for repositories | `3` |
 | `--rollover <hour>` | Day ends at this hour the next morning (`0`..`23`) | `0` |
+| `--author <pattern>` | Only count commits whose author matches (repeatable) | all authors |
 | `--source <list>` | Comma list of `git`, `claude`, `codex` | all |
 | `--format <md\|json>` | Output format | `md` |
 | `--claude-history <file>` | Path to Claude Code `history.jsonl` | `~/.claude/history.jsonl` |
 | `--codex-history <file>` | Path to Codex `history.jsonl` | `~/.codex/history.jsonl` |
 | `-o, --output <file>` | Write to a file | stdout |
+
+### Author filter
+
+On shared repositories, `git log` sees everyone's commits. Pass `--author` one
+or more times to keep only your own; multiple patterns are ORed. git matches
+each pattern as a regular expression against the commit author in
+`Name <email>` form, so `--author 'alice@example\.com'` and `--author Alice`
+both work.
 
 ### Rollover
 

@@ -6,6 +6,25 @@ import { maskSecrets, oneLine } from "../mask.js";
 export const GIT_LOG_FORMAT = "%H%x09%at%x09%s";
 
 /**
+ * Build the `git log` argv used to collect commits from one repository.
+ * Each entry in `authors` becomes a `--author=<pattern>` flag; git ORs
+ * repeated flags and matches each pattern as a regex over `Name <email>`.
+ * An empty `authors` list means no filter (all authors).
+ */
+export function buildGitLogArgs(repo: string, since: string, until: string, authors: string[] = []): string[] {
+  return [
+    "-C",
+    repo,
+    "log",
+    "--all",
+    `--since=${since}`,
+    `--until=${until}`,
+    ...authors.map((author) => `--author=${author}`),
+    `--pretty=${GIT_LOG_FORMAT}`,
+  ];
+}
+
+/**
  * Parse `git log --pretty=GIT_LOG_FORMAT` output into activities, keeping only
  * commits inside `window`. Author time (`%at`) is in seconds; it is converted
  * to milliseconds. `project` labels every commit with its repository.

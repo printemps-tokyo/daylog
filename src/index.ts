@@ -12,7 +12,7 @@ export type { Activity, Window } from "./types.js";
 export { parseDate, dayWindow, localDateString, weekdayJp, inWindow } from "./window.js";
 export { maskSecrets, oneLine } from "./mask.js";
 
-export { parseGitLog, GIT_LOG_FORMAT } from "./sources/git.js";
+export { parseGitLog, buildGitLogArgs, GIT_LOG_FORMAT } from "./sources/git.js";
 export { parseClaudeHistory } from "./sources/claude.js";
 export { parseCodexHistory } from "./sources/codex.js";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseGitLog } from "../src/sources/git.js";
+import { parseGitLog, buildGitLogArgs, GIT_LOG_FORMAT } from "../src/sources/git.js";
 import { parseClaudeHistory } from "../src/sources/claude.js";
 import { parseCodexHistory } from "../src/sources/codex.js";
 
@@ -27,6 +27,39 @@ describe("parseGitLog", () => {
   it("masks secrets in commit subjects", () => {
     const log = `aaaaaaaaaaaa\t${Math.floor(at(9) / 1000)}\tadd token=abc123secret`;
     expect(parseGitLog(log, "r", window)[0]?.title).toBe("add token=[masked]");
+  });
+});
+
+describe("buildGitLogArgs", () => {
+  it("builds the default argv without an author filter", () => {
+    expect(buildGitLogArgs("/repo", "@100", "@200")).toEqual([
+      "-C",
+      "/repo",
+      "log",
+      "--all",
+      "--since=@100",
+      "--until=@200",
+      `--pretty=${GIT_LOG_FORMAT}`,
+    ]);
+  });
+
+  it("adds one --author flag per pattern, before --pretty", () => {
+    const args = buildGitLogArgs("/repo", "@100", "@200", ["alice@example.com", "Bob"]);
+    expect(args).toEqual([
+      "-C",
+      "/repo",
+      "log",
+      "--all",
+      "--since=@100",
+      "--until=@200",
+      "--author=alice@example.com",
+      "--author=Bob",
+      `--pretty=${GIT_LOG_FORMAT}`,
+    ]);
+  });
+
+  it("treats an empty author list like no filter", () => {
+    expect(buildGitLogArgs("/repo", "@1", "@2", [])).toEqual(buildGitLogArgs("/repo", "@1", "@2"));
   });
 });
 

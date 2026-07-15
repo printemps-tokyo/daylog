@@ -9,11 +9,11 @@ import {
   dayWindow,
   localDateString,
   parseGitLog,
+  buildGitLogArgs,
   parseClaudeHistory,
   parseCodexHistory,
   renderJson,
   renderMarkdown,
-  GIT_LOG_FORMAT,
   type Activity,
   type Window,
 } from "./index.js";
@@ -37,6 +37,8 @@ Options:
   --root <dir>            Directory to scan for git repos (repeatable; default: cwd)
   --depth <n>             Max scan depth for repos (default: 3)
   --rollover <hour>       Day ends at this hour next morning, 0..23 (default: 0)
+  --author <pattern>      Only count commits whose author matches (repeatable;
+                          git regex over "Name <email>"; default: all authors)
   --source <list>         Comma list of sources: git,claude,codex (default: all)
   --format <md|json>      Output format (default: md)
   --claude-history <file> Path to Claude history.jsonl (default: ~/.claude/history.jsonl)
@@ -90,7 +92,12 @@ async function findRepos(root: string, depth: number): Promise<string[]> {
 }
 
 /** Collect git commits across every repo found under the given roots. */
-async function collectGit(roots: string[], depth: number, window: Window): Promise<Activity[]> {
+async function collectGit(
+  roots: string[],
+  depth: number,
+  window: Window,
+  authors: string[] = [],
+): Promise<Activity[]> {
   const since = `@${Math.floor(window.startMs / 1000) - 86_400}`;
   const until = `@${Math.floor(window.endMs / 1000) + 86_400}`;
   const seen = new Set<string>();
@@ -104,11 +111,10 @@ async function collectGit(roots: string[], depth: number, window: Window): Promi
       seen.add(repo);
       let output = "";
       try {
-        output = execFileSync(
-          "git",
-          ["-C", repo, "log", "--all", `--since=${since}`, `--until=${until}`, `--pretty=${GIT_LOG_FORMAT}`],
-          { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-        );
+        output = execFileSync("git", buildGitLogArgs(repo, since, until, authors), {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "ignore"],
+        });
       } catch {
         continue; // Not a git repo, or no matching commits.
       }
@@ -147,6 +153,7 @@ async function main(): Promise<number> {
         root: { type: "string", multiple: true },
         depth: { type: "string" },
         rollover: { type: "string" },
+        author: { type: "string", multiple: true },
         source: { type: "string" },
         format: { type: "string" },
         "claude-history": { type: "string" },
@@ -197,7 +204,7 @@ async function main(): Promise<number> {
   const activities: Activity[] = [];
 
   if (sources.includes("git")) {
-    activities.push(...(await collectGit(roots, depth, window)));
+    activities.push(...(await collectGit(roots, depth, window, values.author ?? [])));
   }
   if (sources.includes("claude")) {
     const path = values["claude-history"] ?? join(home, ".claude", "history.jsonl");
