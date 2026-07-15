@@ -2,6 +2,9 @@ import type { Window } from "./types.js";
 
 const WEEKDAYS_JP = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
+/** Largest number of days a single report may cover. */
+export const MAX_RANGE_DAYS = 366;
+
 /** Validate a `YYYY-MM-DD` string and return its numeric parts. */
 export function parseDate(input: string): { year: number; month: number; day: number } {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());
@@ -18,18 +21,31 @@ export function parseDate(input: string): { year: number; month: number; day: nu
   return { year, month, day };
 }
 
+/** Options for {@link dayWindow}. */
+export interface DayWindowOptions {
+  /**
+   * Start the window at `rolloverHour` on the date instead of midnight. Use
+   * this for every day after the first in a multi-day report: the previous
+   * day's window already covers midnight to the rollover hour, so starting at
+   * the rollover hour keeps adjacent windows contiguous and non-overlapping.
+   */
+  startAtRollover?: boolean;
+}
+
 /**
  * Compute the local-time window for a day. It runs from the date's midnight to
  * `rolloverHour` o'clock the next morning, so late-night work counts toward the
  * day it started. With `rolloverHour = 0` the window is exactly the calendar
- * day. `rolloverHour` must be 0..=23.
+ * day. `rolloverHour` must be 0..=23. With `startAtRollover` the window begins
+ * at `rolloverHour` on the date itself (see {@link DayWindowOptions}).
  */
-export function dayWindow(dateStr: string, rolloverHour = 0): Window {
+export function dayWindow(dateStr: string, rolloverHour = 0, options: DayWindowOptions = {}): Window {
   if (!Number.isInteger(rolloverHour) || rolloverHour < 0 || rolloverHour > 23) {
     throw new Error(`rollover hour must be an integer 0..23 (got ${rolloverHour})`);
   }
   const { year, month, day } = parseDate(dateStr);
-  const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+  const startHour = options.startAtRollover ? rolloverHour : 0;
+  const start = new Date(year, month - 1, day, startHour, 0, 0, 0);
   const end = new Date(year, month - 1, day + 1, rolloverHour, 0, 0, 0);
   return { startMs: start.getTime(), endMs: end.getTime() };
 }
@@ -47,12 +63,18 @@ export function shiftDate(dateStr: string, n: number): string {
   return localDateString(new Date(year, month - 1, day + n).getTime());
 }
 
-/** Every date from `from` to `to`, inclusive and ascending. */
+/** Every date from `from` to `to`, inclusive and ascending (max 366 days). */
 export function dateRange(from: string, to: string): string[] {
-  parseDate(from);
-  parseDate(to);
+  const f = parseDate(from);
+  const t = parseDate(to);
   if (to < from) {
     throw new Error(`invalid range: end "${to}" is before start "${from}"`);
+  }
+  const spanMs =
+    new Date(t.year, t.month - 1, t.day).getTime() - new Date(f.year, f.month - 1, f.day).getTime();
+  const span = Math.round(spanMs / 86_400_000) + 1;
+  if (span > MAX_RANGE_DAYS) {
+    throw new Error(`range too large: ${span} days (max ${MAX_RANGE_DAYS})`);
   }
   const dates: string[] = [];
   for (let d = from; d <= to; d = shiftDate(d, 1)) {
@@ -61,12 +83,27 @@ export function dateRange(from: string, to: string): string[] {
   return dates;
 }
 
-/** The `days` consecutive dates ending at `end`, inclusive and ascending. */
+/** The `days` consecutive dates ending at `end`, inclusive and ascending (max 366). */
 export function datesEndingAt(end: string, days: number): string[] {
   if (!Number.isInteger(days) || days < 1) {
     throw new Error(`days must be a positive integer (got ${days})`);
   }
+  if (days > MAX_RANGE_DAYS) {
+    throw new Error(`range too large: ${days} days (max ${MAX_RANGE_DAYS})`);
+  }
   return dateRange(shiftDate(end, 1 - days), end);
+}
+
+/**
+ * Non-overlapping windows for a run of consecutive dates. The first day runs
+ * from its own midnight (exactly like `dayWindow`); every later day starts at
+ * `rolloverHour` on its own date, so activity between midnight and the
+ * rollover hour is attributed only to the previous day. Each day still ends at
+ * `rolloverHour` the next morning. With `rolloverHour = 0` every window is
+ * exactly the calendar day.
+ */
+export function dayWindows(dates: string[], rolloverHour = 0): Window[] {
+  return dates.map((date, i) => dayWindow(date, rolloverHour, { startAtRollover: i > 0 }));
 }
 
 /** The single-character Japanese weekday label for a `YYYY-MM-DD` date. */

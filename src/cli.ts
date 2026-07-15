@@ -7,6 +7,7 @@ import { basename, join } from "node:path";
 
 import {
   dayWindow,
+  dayWindows,
   localDateString,
   dateRange,
   datesEndingAt,
@@ -238,9 +239,12 @@ async function main(): Promise<number> {
     ? await readIfExists(values["codex-history"] ?? join(home, ".codex", "history.jsonl"))
     : "";
 
+  // Windows for consecutive days never overlap: with --rollover, activity
+  // between midnight and the rollover hour belongs only to the previous day.
+  const windows = dayWindows(dates, rollover);
   const reports: DayReport[] = [];
-  for (const date of dates) {
-    const window = dayWindow(date, rollover);
+  for (const [i, date] of dates.entries()) {
+    const window = windows[i]!;
     const activities: Activity[] = [];
     if (sources.includes("git")) {
       activities.push(...(await collectGit(roots, depth, window, values.author ?? [])));

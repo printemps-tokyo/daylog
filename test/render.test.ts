@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderMarkdown, renderJson, renderMarkdownMulti, renderJsonMulti } from "../src/render.js";
+import { dayWindows, inWindow } from "../src/window.js";
 import type { Activity } from "../src/types.js";
 
 const at = (h: number, m = 0): number => new Date(2026, 5, 19, h, m, 0).getTime();
@@ -49,6 +50,30 @@ describe("renderMarkdownMulti", () => {
     expect(md).toContain("# 2026-06-18（木）daylog");
     expect(md).toContain("_No activity recorded._");
     expect(md).toContain("_2 of 3 days had activity._");
+  });
+
+  it("counts a rollover-window event once across a two-day report", () => {
+    // One commit at 02:00 on day 2 with --rollover 5: it belongs to day 1's
+    // window only, so it must appear once and the footer must say 1 of 2.
+    const dates = ["2026-06-19", "2026-06-20"];
+    const commit: Activity = {
+      source: "git",
+      ts: new Date(2026, 5, 20, 2, 0, 0).getTime(),
+      project: "web",
+      title: "fix: late night",
+    };
+    const windows = dayWindows(dates, 5);
+    const reports = dates.map((date, i) => ({
+      date,
+      activities: [commit].filter((a) => inWindow(a.ts, windows[i]!)),
+    }));
+    expect(reports[0]!.activities).toHaveLength(1);
+    expect(reports[1]!.activities).toHaveLength(0);
+    const md = renderMarkdownMulti(reports);
+    expect(md.match(/fix: late night/g)).toHaveLength(1);
+    expect(md).toContain("# 2026-06-19（金）daylog");
+    expect(md).not.toContain("# 2026-06-20");
+    expect(md).toContain("_1 of 2 days had activity._");
   });
 });
 

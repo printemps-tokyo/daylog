@@ -88,7 +88,12 @@ inclusive range such as `2026-06-15..2026-06-19`. Days with no activity are
 skipped unless `--include-empty` is passed, and Markdown output ends with a
 one-line `N of M days had activity` footer. With `--format json`, multi-day
 output is an array of the usual per-day objects. `--author` applies across the
-whole range.
+whole range. A report covers at most 366 days; a longer `--days` or range is
+rejected with `range too large`.
+
+Note that a one-day range such as `2026-06-19..2026-06-19` still uses the
+multi-day output: with `--format json` it prints a one-element array, while
+`--days 1` or a bare date keeps the single-object shape.
 
 ### Author filter
 
@@ -102,7 +107,9 @@ both work.
 
 Late-night work usually belongs to the day it started. `--rollover 6` makes a
 day run from midnight to 6:00 the next morning, so a commit at 01:30 still counts
-toward the previous day.
+toward the previous day. In a multi-day report the windows never overlap: each
+day after the first starts at the rollover hour, so early-morning activity is
+counted once, toward the day it started.
 
 ## Sources
 

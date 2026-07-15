@@ -10,9 +10,12 @@
 export type { Activity, Window } from "./types.js";
 export type { DayReport } from "./render.js";
 
+export type { DayWindowOptions } from "./window.js";
 export {
+  MAX_RANGE_DAYS,
   parseDate,
   dayWindow,
+  dayWindows,
   localDateString,
   weekdayJp,
   inWindow,
