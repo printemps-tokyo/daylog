@@ -115,7 +115,9 @@ describe("datesEndingAt", () => {
 
   it("accepts up to 366 days and rejects more", () => {
     expect(datesEndingAt("2026-07-15", MAX_RANGE_DAYS)).toHaveLength(366);
-    expect(() => datesEndingAt("2026-07-15", 367)).toThrow("range too large: 367 days (max 366)");
+    expect(() => datesEndingAt("2026-07-15", 367)).toThrow("date range too large: 367 days (max 366)");
+    // The CLI's --days flag funnels through this check (e.g. --days 400).
+    expect(() => datesEndingAt("2026-07-15", 400)).toThrow("date range too large: 400 days (max 366)");
   });
 });
 
@@ -141,9 +143,9 @@ describe("dateRange", () => {
 
   it("accepts a full leap year and rejects anything longer", () => {
     expect(dateRange("2024-01-01", "2024-12-31")).toHaveLength(366);
-    expect(() => dateRange("2024-01-01", "2025-01-01")).toThrow("range too large: 367 days (max 366)");
+    expect(() => dateRange("2024-01-01", "2025-01-01")).toThrow("date range too large: 367 days (max 366)");
     // A pathological range fails fast instead of iterating millions of days.
-    expect(() => dateRange("1000-01-01", "9999-12-31")).toThrow(/range too large/);
+    expect(() => dateRange("1000-01-01", "9999-12-31")).toThrow(/date range too large/);
   });
 });
 

@@ -74,7 +74,7 @@ export function dateRange(from: string, to: string): string[] {
     new Date(t.year, t.month - 1, t.day).getTime() - new Date(f.year, f.month - 1, f.day).getTime();
   const span = Math.round(spanMs / 86_400_000) + 1;
   if (span > MAX_RANGE_DAYS) {
-    throw new Error(`range too large: ${span} days (max ${MAX_RANGE_DAYS})`);
+    throw new Error(`date range too large: ${span} days (max ${MAX_RANGE_DAYS})`);
   }
   const dates: string[] = [];
   for (let d = from; d <= to; d = shiftDate(d, 1)) {
@@ -89,7 +89,7 @@ export function datesEndingAt(end: string, days: number): string[] {
     throw new Error(`days must be a positive integer (got ${days})`);
   }
   if (days > MAX_RANGE_DAYS) {
-    throw new Error(`range too large: ${days} days (max ${MAX_RANGE_DAYS})`);
+    throw new Error(`date range too large: ${days} days (max ${MAX_RANGE_DAYS})`);
   }
   return dateRange(shiftDate(end, 1 - days), end);
 }

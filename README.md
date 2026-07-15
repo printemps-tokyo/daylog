@@ -89,7 +89,8 @@ skipped unless `--include-empty` is passed, and Markdown output ends with a
 one-line `N of M days had activity` footer. With `--format json`, multi-day
 output is an array of the usual per-day objects. `--author` applies across the
 whole range. A report covers at most 366 days; a longer `--days` or range is
-rejected with `range too large`.
+rejected with `date range too large: N days (max 366)` before any repo is
+scanned.
 
 Note that a one-day range such as `2026-06-19..2026-06-19` still uses the
 multi-day output: with `--format json` it prints a one-element array, while
