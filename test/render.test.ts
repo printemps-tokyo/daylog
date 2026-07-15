@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderMarkdown, renderJson } from "../src/render.js";
+import { renderMarkdown, renderJson, renderMarkdownMulti, renderJsonMulti } from "../src/render.js";
 import type { Activity } from "../src/types.js";
 
 const at = (h: number, m = 0): number => new Date(2026, 5, 19, h, m, 0).getTime();
@@ -25,6 +25,44 @@ describe("renderMarkdown", () => {
 
   it("notes when there is no activity", () => {
     expect(renderMarkdown("2026-06-19", [])).toContain("_No activity recorded._");
+  });
+});
+
+describe("renderMarkdownMulti", () => {
+  const days = [
+    { date: "2026-06-18", activities: [] as Activity[] },
+    { date: "2026-06-19", activities },
+    { date: "2026-06-20", activities: [activities[0]!] },
+  ];
+
+  it("concatenates per-day digests, skipping empty days, with a footer", () => {
+    const md = renderMarkdownMulti(days);
+    expect(md).not.toContain("2026-06-18");
+    expect(md).toContain("# 2026-06-19（金）daylog");
+    expect(md).toContain("# 2026-06-20（土）daylog");
+    expect(md).toContain("_2 of 3 days had activity._");
+    expect(md).not.toContain("_No activity recorded._");
+  });
+
+  it("keeps empty days when includeEmpty is set", () => {
+    const md = renderMarkdownMulti(days, true);
+    expect(md).toContain("# 2026-06-18（木）daylog");
+    expect(md).toContain("_No activity recorded._");
+    expect(md).toContain("_2 of 3 days had activity._");
+  });
+});
+
+describe("renderJsonMulti", () => {
+  it("emits an array of per-day objects, skipping empty days", () => {
+    const parsed = JSON.parse(
+      renderJsonMulti([
+        { date: "2026-06-18", activities: [] },
+        { date: "2026-06-19", activities },
+      ]),
+    );
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({ date: "2026-06-19", count: 4 });
   });
 });
 

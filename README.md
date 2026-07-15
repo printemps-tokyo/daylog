@@ -56,6 +56,8 @@ Then run `daylog …` (after `npm link`), or `node dist/cli.js …` from the clo
 ```bash
 daylog                          # today, scanning the current directory for repos
 daylog 2026-06-19               # a specific day
+daylog --days 7 --author me --format md   # weekly report: the last 7 days, your commits only
+daylog 2026-06-15..2026-06-19   # an explicit inclusive date range
 daylog --root ~/src --rollover 6   # scan ~/src; the day ends at 06:00 next morning
 daylog --source git,claude      # only some sources
 daylog --author me@example.com  # only your commits on shared repos (repeatable)
@@ -65,8 +67,11 @@ daylog --format json -o day.json   # machine-readable output to a file
 | Option | Description | Default |
 | --- | --- | --- |
 | `[date]` | Day to report, `YYYY-MM-DD` | today (local) |
+| `[FROM..TO]` | Inclusive date range, `YYYY-MM-DD..YYYY-MM-DD` | - |
 | `--root <dir>` | Directory to scan for git repos (repeatable) | current directory |
 | `--depth <n>` | Max scan depth for repositories | `3` |
+| `--days <n>` | Report the `n` days ending at `[date]` (`n >= 1`) | `1` |
+| `--include-empty` | Keep days with no activity in multi-day output | off |
 | `--rollover <hour>` | Day ends at this hour the next morning (`0`..`23`) | `0` |
 | `--author <pattern>` | Only count commits whose author matches (repeatable) | all authors |
 | `--source <list>` | Comma list of `git`, `claude`, `codex` | all |
@@ -74,6 +79,16 @@ daylog --format json -o day.json   # machine-readable output to a file
 | `--claude-history <file>` | Path to Claude Code `history.jsonl` | `~/.claude/history.jsonl` |
 | `--codex-history <file>` | Path to Codex `history.jsonl` | `~/.codex/history.jsonl` |
 | `-o, --output <file>` | Write to a file | stdout |
+
+### Multi-day reports
+
+Pass `--days 7` for a weekly report: the last seven days ending at `[date]`
+(today by default), each day rendered with its own heading. Or give an explicit
+inclusive range such as `2026-06-15..2026-06-19`. Days with no activity are
+skipped unless `--include-empty` is passed, and Markdown output ends with a
+one-line `N of M days had activity` footer. With `--format json`, multi-day
+output is an array of the usual per-day objects. `--author` applies across the
+whole range.
 
 ### Author filter
 

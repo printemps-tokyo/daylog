@@ -8,12 +8,22 @@
  */
 
 export type { Activity, Window } from "./types.js";
+export type { DayReport } from "./render.js";
 
-export { parseDate, dayWindow, localDateString, weekdayJp, inWindow } from "./window.js";
+export {
+  parseDate,
+  dayWindow,
+  localDateString,
+  weekdayJp,
+  inWindow,
+  shiftDate,
+  dateRange,
+  datesEndingAt,
+} from "./window.js";
 export { maskSecrets, oneLine } from "./mask.js";
 
 export { parseGitLog, buildGitLogArgs, GIT_LOG_FORMAT } from "./sources/git.js";
 export { parseClaudeHistory } from "./sources/claude.js";
 export { parseCodexHistory } from "./sources/codex.js";
 
-export { renderMarkdown, renderJson } from "./render.js";
+export { renderMarkdown, renderJson, renderMarkdownMulti, renderJsonMulti } from "./render.js";

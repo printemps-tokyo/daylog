@@ -41,6 +41,34 @@ export function localDateString(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** The date `n` days after `dateStr` (`n` may be negative). */
+export function shiftDate(dateStr: string, n: number): string {
+  const { year, month, day } = parseDate(dateStr);
+  return localDateString(new Date(year, month - 1, day + n).getTime());
+}
+
+/** Every date from `from` to `to`, inclusive and ascending. */
+export function dateRange(from: string, to: string): string[] {
+  parseDate(from);
+  parseDate(to);
+  if (to < from) {
+    throw new Error(`invalid range: end "${to}" is before start "${from}"`);
+  }
+  const dates: string[] = [];
+  for (let d = from; d <= to; d = shiftDate(d, 1)) {
+    dates.push(d);
+  }
+  return dates;
+}
+
+/** The `days` consecutive dates ending at `end`, inclusive and ascending. */
+export function datesEndingAt(end: string, days: number): string[] {
+  if (!Number.isInteger(days) || days < 1) {
+    throw new Error(`days must be a positive integer (got ${days})`);
+  }
+  return dateRange(shiftDate(end, 1 - days), end);
+}
+
 /** The single-character Japanese weekday label for a `YYYY-MM-DD` date. */
 export function weekdayJp(dateStr: string): string {
   const { year, month, day } = parseDate(dateStr);
