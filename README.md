@@ -35,7 +35,7 @@ work without trying to remember it.
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 22
 - `git` on your `PATH` (for the git source)
 
 ## Install
