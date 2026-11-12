@@ -119,7 +119,7 @@ async function collectGit(
         continue;
       }
       seen.add(repo);
-      let output = "";
+      let output: string;
       try {
         output = execFileSync("git", buildGitLogArgs(repo, since, until, authors), {
           encoding: "utf8",
