@@ -1,6 +1,6 @@
 {
   "name": "@printemps-tokyo/daylog",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Aggregate a day of dev activity from git and AI coding-tool histories into a digest. Zero-dependency CLI.",
   "type": "module",
   "license": "MIT",

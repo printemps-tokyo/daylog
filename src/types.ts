@@ -1,7 +1,7 @@
 /** A single normalized activity event from one of the sources. */
 export interface Activity {
   /** Which collector produced this event. */
-  source: "git" | "claude" | "codex";
+  source: "git" | "claude" | "codex" | "gemini";
   /** Event time in milliseconds since the Unix epoch. */
   ts: number;
   /** Project / repository this event belongs to, when known. */

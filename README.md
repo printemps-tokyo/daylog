@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 `daylog` answers "what did I work on today?" by collecting your git commits and
-your AI coding-tool prompts (Claude Code, Codex) for a single day and printing a
+your AI coding-tool prompts (Claude Code, Codex, Gemini CLI) for a single day and printing a
 tidy Markdown or JSON digest. It is perfect for a daily standup, a progress
 report, or the first draft of a changelog.
 
@@ -58,6 +58,8 @@ daylog                          # today, scanning the current directory for repo
 daylog 2026-06-19               # a specific day
 daylog --days 7 --author me --format md   # weekly report: the last 7 days, your commits only
 daylog 2026-06-15..2026-06-19   # an explicit inclusive date range
+daylog --week --summary         # this week (Monday to Sunday), as totals
+daylog 2026-06 --summary        # a monthly report for June 2026
 daylog --root ~/src --rollover 6   # scan ~/src; the day ends at 06:00 next morning
 daylog --source git,claude      # only some sources
 daylog --author me@example.com  # only your commits on shared repos (repeatable)
@@ -68,16 +70,20 @@ daylog --format json -o day.json   # machine-readable output to a file
 | --- | --- | --- |
 | `[date]` | Day to report, `YYYY-MM-DD` | today (local) |
 | `[FROM..TO]` | Inclusive date range, `YYYY-MM-DD..YYYY-MM-DD` | - |
+| `[YYYY-MM]` | A whole calendar month | - |
+| `--week` | The Monday-to-Sunday week containing `[date]` | off |
+| `--summary` | For several days: totals per project and per day instead of every item | off |
 | `--root <dir>` | Directory to scan for git repos (repeatable) | current directory |
 | `--depth <n>` | Max scan depth for repositories | `3` |
 | `--days <n>` | Report the `n` days ending at `[date]` (`n >= 1`) | `1` |
 | `--include-empty` | Keep days with no activity in multi-day output | off |
 | `--rollover <hour>` | Day ends at this hour the next morning (`0`..`23`) | `0` |
 | `--author <pattern>` | Only count commits whose author matches (repeatable) | all authors |
-| `--source <list>` | Comma list of `git`, `claude`, `codex` | all |
+| `--source <list>` | Comma list of `git`, `claude`, `codex`, `gemini` | all |
 | `--format <md\|json>` | Output format | `md` |
 | `--claude-history <file>` | Path to Claude Code `history.jsonl` | `~/.claude/history.jsonl` |
 | `--codex-history <file>` | Path to Codex `history.jsonl` | `~/.codex/history.jsonl` |
+| `--gemini-dir <dir>` | Gemini CLI's per-project logs | `~/.gemini/tmp` |
 | `-o, --output <file>` | Write to a file | stdout |
 
 ### Multi-day reports
@@ -95,6 +101,16 @@ scanned.
 Note that a one-day range such as `2026-06-19..2026-06-19` still uses the
 multi-day output: with `--format json` it prints a one-element array, while
 `--days 1` or a bare date keeps the single-object shape.
+
+### Weekly and monthly summaries
+
+`--summary` turns a multi-day report into totals: days with activity, the
+number of commits and prompts per source, then a table per project (busiest
+first, with the number of days it was worked on) and a table per day. Combine
+it with `--week` (the Monday-to-Sunday week containing `[date]`, this week by
+default), a month (`daylog 2026-06`), `--days N` or a `FROM..TO` range. With
+`--format json` the same numbers come as one object. Prompt and commit texts
+are not printed in a summary.
 
 ### Author filter
 
@@ -118,6 +134,11 @@ counted once, toward the day it started.
   including nested repositories, labelled by repository name.
 - **Claude Code** - prompts from `~/.claude/history.jsonl`, grouped by project.
 - **Codex** - prompts from `~/.codex/history.jsonl`.
+- **Gemini CLI** - prompts from each project's `logs.json` under
+  `~/.gemini/tmp` (entries of `type: "user"`). The project is the folder named
+  in the log folder's `.project_root` marker, or the log folder's name when it
+  is readable; older Gemini CLI versions name the folder by a hash of the
+  path, so those prompts have no project.
 
 Repeated identical entries are folded into one line tagged `(xN)`.
 

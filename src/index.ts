@@ -22,11 +22,23 @@ export {
   shiftDate,
   dateRange,
   datesEndingAt,
+  weekOf,
+  monthDates,
 } from "./window.js";
 export { maskSecrets, oneLine } from "./mask.js";
 
 export { parseGitLog, buildGitLogArgs, GIT_LOG_FORMAT } from "./sources/git.js";
 export { parseClaudeHistory } from "./sources/claude.js";
 export { parseCodexHistory } from "./sources/codex.js";
+export { parseGeminiLogs, readGeminiLogs, type GeminiLog } from "./sources/gemini.js";
 
-export { renderMarkdown, renderJson, renderMarkdownMulti, renderJsonMulti } from "./render.js";
+export {
+  renderMarkdown,
+  renderJson,
+  renderMarkdownMulti,
+  renderJsonMulti,
+  renderSummaryMarkdown,
+  renderSummaryJson,
+  summarize,
+  type Summary,
+} from "./render.js";

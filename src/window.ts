@@ -116,3 +116,22 @@ export function weekdayJp(dateStr: string): string {
 export function inWindow(ms: number, window: Window): boolean {
   return ms >= window.startMs && ms < window.endMs;
 }
+
+/** The Monday-to-Sunday week that contains `dateStr`. */
+export function weekOf(dateStr: string): string[] {
+  const { year, month, day } = parseDate(dateStr);
+  const dow = new Date(year, month - 1, day).getDay(); // 0 = Sunday
+  const monday = shiftDate(dateStr, -((dow + 6) % 7));
+  return dateRange(monday, shiftDate(monday, 6));
+}
+
+/** Every day of the calendar month `YYYY-MM`. */
+export function monthDates(yearMonth: string): string[] {
+  const m = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (!m) throw new Error(`invalid month: "${yearMonth}" (expected YYYY-MM)`);
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) throw new Error(`invalid month: "${yearMonth}"`);
+  const last = new Date(year, month, 0).getDate();
+  return dateRange(`${yearMonth}-01`, `${yearMonth}-${String(last).padStart(2, "0")}`);
+}

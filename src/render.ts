@@ -1,11 +1,12 @@
 import type { Activity } from "./types.js";
 import { weekdayJp } from "./window.js";
 
-const SOURCE_ORDER: Activity["source"][] = ["git", "claude", "codex"];
+const SOURCE_ORDER: Activity["source"][] = ["git", "claude", "codex", "gemini"];
 const SOURCE_LABEL: Record<Activity["source"], string> = {
   git: "git",
   claude: "Claude Code",
   codex: "Codex",
+  gemini: "Gemini CLI",
 };
 
 function timeHHMM(ms: number): string {
@@ -122,4 +123,99 @@ export function renderMarkdownMulti(days: DayReport[], includeEmpty = false): st
 export function renderJsonMulti(days: DayReport[], includeEmpty = false): string {
   const shown = includeEmpty ? days : days.filter((d) => d.activities.length > 0);
   return JSON.stringify(shown.map((d) => dayJson(d.date, d.activities)), null, 2) + "\n";
+}
+
+/** Counts for one period, one project, or one day. */
+interface Tally {
+  total: number;
+  bySource: Record<Activity["source"], number>;
+}
+
+function emptyTally(): Tally {
+  return { total: 0, bySource: { git: 0, claude: 0, codex: 0, gemini: 0 } };
+}
+
+function add(t: Tally, a: Activity): void {
+  t.total += 1;
+  t.bySource[a.source] += 1;
+}
+
+/** The numbers behind a weekly or monthly summary. */
+export interface Summary {
+  from: string;
+  to: string;
+  days: number;
+  activeDays: number;
+  totals: Tally;
+  projects: { project: string; tally: Tally; days: number }[];
+  perDay: { date: string; weekday: string; tally: Tally }[];
+}
+
+/** Aggregate several days: totals, per project (busiest first) and per day. */
+export function summarize(days: DayReport[]): Summary {
+  const totals = emptyTally();
+  const projects = new Map<string, { tally: Tally; dates: Set<string> }>();
+  const perDay = days.map((d) => {
+    const tally = emptyTally();
+    for (const a of d.activities) {
+      add(tally, a);
+      add(totals, a);
+      const key = a.project ?? "(no project)";
+      let p = projects.get(key);
+      if (!p) {
+        p = { tally: emptyTally(), dates: new Set() };
+        projects.set(key, p);
+      }
+      add(p.tally, a);
+      p.dates.add(d.date);
+    }
+    return { date: d.date, weekday: weekdayJp(d.date), tally };
+  });
+  return {
+    from: days[0]?.date ?? "",
+    to: days[days.length - 1]?.date ?? "",
+    days: days.length,
+    activeDays: perDay.filter((d) => d.tally.total > 0).length,
+    totals,
+    projects: [...projects.entries()]
+      .map(([project, p]) => ({ project, tally: p.tally, days: p.dates.size }))
+      .sort((a, b) => b.tally.total - a.tally.total || a.project.localeCompare(b.project)),
+    perDay,
+  };
+}
+
+function sourceCells(t: Tally): string {
+  return SOURCE_ORDER.map((s) => String(t.bySource[s])).join(" | ");
+}
+
+/** A weekly or monthly report in Markdown: totals, then a table per project and per day. */
+export function renderSummaryMarkdown(days: DayReport[]): string {
+  const s = summarize(days);
+  const header = `| ${SOURCE_ORDER.map((x) => SOURCE_LABEL[x]).join(" | ")} |`;
+  const rule = `|${" --- |".repeat(SOURCE_ORDER.length)}`;
+  const lines = [
+    `# ${s.from}（${weekdayJp(s.from)}）..${s.to}（${weekdayJp(s.to)}）daylog summary`,
+    "",
+    `- Days with activity: ${s.activeDays} of ${s.days}`,
+    `- Activities: ${s.totals.total} (${SOURCE_ORDER.map((x) => `${SOURCE_LABEL[x]} ${s.totals.bySource[x]}`).join(", ")})`,
+    "",
+  ];
+  if (s.totals.total === 0) {
+    lines.push("_No activity recorded._");
+    return lines.join("\n") + "\n";
+  }
+  lines.push("## By project", "", `| Project | Days ${header}`, `| --- | --- ${rule}`);
+  for (const p of s.projects) {
+    lines.push(`| ${p.project.replace(/\|/g, "\\|")} | ${p.days} | ${sourceCells(p.tally)} |`);
+  }
+  lines.push("", "## By day", "", `| Date | Total ${header}`, `| --- | --- ${rule}`);
+  for (const d of s.perDay) {
+    lines.push(`| ${d.date}（${d.weekday}） | ${d.tally.total} | ${sourceCells(d.tally)} |`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** The same summary as JSON. */
+export function renderSummaryJson(days: DayReport[]): string {
+  return JSON.stringify(summarize(days), null, 2) + "\n";
 }

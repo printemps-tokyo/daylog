@@ -24,35 +24,43 @@ import {
   type Window,
 } from "./index.js";
 import { usageError } from "./usage.js";
+import { parseGeminiLogs, readGeminiLogs } from "./sources/gemini.js";
+import { renderSummaryJson, renderSummaryMarkdown } from "./render.js";
+import { monthDates, weekOf } from "./window.js";
 
-const ALL_SOURCES = ["git", "claude", "codex"] as const;
+const ALL_SOURCES = ["git", "claude", "codex", "gemini"] as const;
 type Source = (typeof ALL_SOURCES)[number];
 
 const HELP = `daylog - aggregate a day of dev activity into a digest
 
 Usage:
-  daylog [date | FROM..TO] [options]
+  daylog [date | FROM..TO | YYYY-MM] [options]
 
-Collects git commits and AI coding-tool (Claude Code, Codex) prompts for one or
-more days and prints a Markdown or JSON digest. Fully offline. Secrets matching
-common key/value shapes are masked automatically.
+Collects git commits and AI coding-tool (Claude Code, Codex, Gemini CLI)
+prompts for one or more days and prints a Markdown or JSON digest. Fully
+offline. Secrets matching common key/value shapes are masked automatically.
 
 Arguments:
   date                    Day to report, YYYY-MM-DD (default: today, local time)
   FROM..TO                Inclusive date range, YYYY-MM-DD..YYYY-MM-DD
+  YYYY-MM                 A whole calendar month
 
 Options:
   --root <dir>            Directory to scan for git repos (repeatable; default: cwd)
   --depth <n>             Max scan depth for repos (default: 3)
   --days <n>              Report the n days ending at [date], n >= 1 (default: 1)
+  --week                  Report the Monday-to-Sunday week containing [date]
+  --summary               For several days, print totals per project and per day
+                          (a weekly or monthly report) instead of every item
   --include-empty         Keep days with no activity in multi-day output
   --rollover <hour>       Day ends at this hour next morning, 0..23 (default: 0)
   --author <pattern>      Only count commits whose author matches (repeatable;
                           git regex over "Name <email>"; default: all authors)
-  --source <list>         Comma list of sources: git,claude,codex (default: all)
+  --source <list>         Comma list of sources: git,claude,codex,gemini (default: all)
   --format <md|json>      Output format (default: md)
   --claude-history <file> Path to Claude history.jsonl (default: ~/.claude/history.jsonl)
   --codex-history <file>  Path to Codex history.jsonl (default: ~/.codex/history.jsonl)
+  --gemini-dir <dir>      Gemini CLI's per-project logs (default: ~/.gemini/tmp)
   -o, --output <file>     Write to a file (default: stdout)
   -h, --help              Show this help
   -v, --version           Show version
@@ -170,6 +178,9 @@ async function main(): Promise<number> {
         format: { type: "string" },
         "claude-history": { type: "string" },
         "codex-history": { type: "string" },
+        "gemini-dir": { type: "string" },
+        week: { type: "boolean" },
+        summary: { type: "boolean" },
         output: { type: "string", short: "o" },
       },
     });
@@ -197,7 +208,7 @@ async function main(): Promise<number> {
     sources = values.source.split(",").map((s) => s.trim()) as Source[];
     const bad = sources.find((s) => !ALL_SOURCES.includes(s));
     if (bad) {
-      process.stderr.write(`error: unknown source "${bad}" (use git,claude,codex)\n`);
+      process.stderr.write(`error: unknown source "${bad}" (use git,claude,codex,gemini)\n`);
       return 1;
     }
   }
@@ -213,18 +224,25 @@ async function main(): Promise<number> {
 
   const positional = positionals[0];
   const rangeIdx = positional ? positional.indexOf("..") : -1;
-  const isRange = rangeIdx >= 0;
-  if (isRange && values.days !== undefined) {
-    process.stderr.write(`error: --days cannot be combined with a FROM..TO range\n`);
+  const isMonth = positional !== undefined && /^\d{4}-\d{2}$/.test(positional);
+  const isRange = rangeIdx >= 0 || isMonth || values.week === true;
+  const shapes = [rangeIdx >= 0, isMonth, values.week === true, values.days !== undefined].filter(Boolean);
+  if (shapes.length > 1) {
+    process.stderr.write(`error: use only one of FROM..TO, YYYY-MM, --week and --days\n`);
     return 1;
   }
 
   let dates: string[];
   try {
+    const day = positional ?? localDateString(Date.now());
     dates =
-      isRange && positional
+      rangeIdx >= 0 && positional
         ? dateRange(positional.slice(0, rangeIdx), positional.slice(rangeIdx + 2))
-        : datesEndingAt(positional ?? localDateString(Date.now()), days);
+        : isMonth
+          ? monthDates(day)
+          : values.week
+            ? weekOf(day)
+            : datesEndingAt(day, days);
     dayWindow(dates[0]!, rollover); // Validates the rollover hour up front.
   } catch (err) {
     process.stderr.write(`error: ${(err as Error).message}\n`);
@@ -239,6 +257,9 @@ async function main(): Promise<number> {
   const codexText = sources.includes("codex")
     ? await readIfExists(values["codex-history"] ?? join(home, ".codex", "history.jsonl"))
     : "";
+  const geminiLogs = sources.includes("gemini")
+    ? await readGeminiLogs(values["gemini-dir"] ?? join(home, ".gemini", "tmp"))
+    : [];
 
   // Windows for consecutive days never overlap: with --rollover, activity
   // between midnight and the rollover hour belongs only to the previous day.
@@ -256,13 +277,22 @@ async function main(): Promise<number> {
     if (sources.includes("codex")) {
       activities.push(...parseCodexHistory(codexText, window));
     }
+    for (const log of geminiLogs) {
+      activities.push(...parseGeminiLogs(log.text, window, log.project));
+    }
     reports.push({ date, activities });
   }
 
   const multi = isRange || days > 1;
   const includeEmpty = values["include-empty"] ?? false;
+  if (values.summary && !multi) {
+    process.stderr.write(`error: --summary needs several days (FROM..TO, YYYY-MM, --week or --days)\n`);
+    return 1;
+  }
   let output: string;
-  if (multi) {
+  if (values.summary) {
+    output = format === "json" ? renderSummaryJson(reports) : renderSummaryMarkdown(reports);
+  } else if (multi) {
     output =
       format === "json"
         ? renderJsonMulti(reports, includeEmpty)
